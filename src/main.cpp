@@ -3,6 +3,8 @@
 #include <freertos/task.h>
 #include <freertos/semphr.h>
 #include <esp_timer.h>
+#include <esp_task_wdt.h>
+#include <esp_idf_version.h>
 #include <stdint.h>
 #include <inttypes.h>
 
@@ -299,6 +301,23 @@ static void printSeparator() {
 void setup() {
     Serial.begin(115200);
     vTaskDelay(pdMS_TO_TICKS(1500));
+
+    // =========================================================================
+    // CONFIGURACAO DO WATCHDOG TIMER (WDT)
+    // =========================================================================
+    // Aumenta o timeout do WDT para 30 segundos para evitar falhas durante
+    // os testes de estresse com lockings prolongados (Caso B).
+#if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 0, 0)
+    esp_task_wdt_config_t wdt_config = {
+        .timeout_ms = 30000,
+        .idle_core_mask = (1 << portNUM_PROCESSORS) - 1,
+        .trigger_panic = false
+    };
+    esp_task_wdt_reconfigure(&wdt_config);
+#else
+    esp_task_wdt_init(30, false);
+#endif
+    // =========================================================================
 
     // Eleva a prioridade da tarefa coordenadora para garantir sincronismo preciso no disparo
     vTaskPrioritySet(nullptr, COORDINATOR_PRIORITY);
